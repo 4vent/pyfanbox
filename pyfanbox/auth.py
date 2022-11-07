@@ -37,7 +37,7 @@ def get_fanbox_session_cookies() -> list[types.Cookie]:
                '&return_to=https%3A%2F%2Fwww.fanbox.cc%2Fauth%2Fstart'
                '&source=fanbox')
     input('Press enter after logging in to fanbox. >')
-    return list(map(lambda x: types.Cookie(**x), driver.get_cookies()))
+    return driver.get_cookies()  # type: ignore
 
 
 class SessionError(Exception):

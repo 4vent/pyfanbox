@@ -1,39 +1,10 @@
 import json
-import os
+from typing import Literal
 from urllib import parse
 
 import requests
 
-import .types
-
-
-def prepare_driver():
-    from selenium import webdriver
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
-
-    LOCALAPPDATA = os.getenv('LOCALAPPDATA')
-    if LOCALAPPDATA is not None:
-        CHROME_USER_DATA_PATH = LOCALAPPDATA + r'\Google\Chrome\User Data'
-    else:
-        raise RuntimeError('%LOCALAPPDATA% is None!!!')
-
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_experimental_option(
-        'excludeSwitches', ['enable-logging'])
-    chrome_options.add_argument('--user-data-dir=' + CHROME_USER_DATA_PATH)
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=chrome_options)
-
-
-def get_fanbox_session_cookies():
-    driver = prepare_driver()
-    driver.get('https://accounts.pixiv.net/login'
-               '?prompt=select_account'
-               '&return_to=https%3A%2F%2Fwww.fanbox.cc%2Fauth%2Fstart'
-               '&source=fanbox')
-    input('Press enter after logging in to fanbox. >')
-    return driver.get_cookies()
+from . import types
 
 
 class CC_FANBOX_API():
@@ -46,29 +17,106 @@ class CC_FANBOX_API():
             raise RuntimeError('Could not connect to Fanbox API! (Invalid cookie "FANBOXSESSID"?)')
         
         self.POST = _API_POST(self)
+        self.CREATOR = _API_CREATOR(self)
+        self.PLAN = _API_PLAN(self)
+        self.TAG = _API_TAG(self)
+        self.BELL = _API_BELL(self)
+        self.USER = _API_USER(self)
+        self.NEWSLETTER = _API_NEWSLETTER(self)
     
-    def get(self, _url, **query) -> dict:
+    def get(self, _url: str, **query) -> dict:
+        if not _url.startswith('https://'):
+            _url = 'https://api.fanbox.cc' + _url
         res = self.sess.get(_url + '?' + parse.urlencode(query, doseq=True))
         if not res.status_code == 200:
             raise RuntimeError('API access failed.', res.status_code, res.reason)
         return json.loads(res.content)
     
     @staticmethod
-    def parse_url(url):
-        p = parse.urlparse(url)
-        return {
-            '_url': p.scheme + '://' + p.netloc + p.path,
-            **parse.parse_qs(p.query)
-        }
+    def parse_qs(next_url):
+        p = parse.urlparse(next_url)
+        return parse.parse_qs(p.query)
 
 
-class _API_POST():
+class _CHILD_API():
     def __init__(self, api: CC_FANBOX_API) -> None:
-        self.__api = api
+        self._api = api
+
+
+class _API_POST(_CHILD_API):
+    def paginateCreator(self, creatorId: str):
+        return types.APIPostPaginate(
+            **self._api.get('/post.paginateCreator', creatorId=creatorId)
+        )
     
-    def paginateCreator(self, creatorId: str | None = None, *, next_url: str | None = None):
-        if next_url:
-            return self.__api.get(next_url)
-        else:
-            return self.__api.get('https://api.fanbox.cc/post.paginateCreator',
-                                  creatorId=creatorId)
+    def listCreator(self, creatorId: str, maxPublishedDatetime: str,
+                    maxId: str, limit: int):
+        return types.APIPostListCreator(
+            **self._api.get('/post.listCreator',
+                            creatorId=creatorId,
+                            maxPublishedDatetime=maxPublishedDatetime,
+                            maxId=maxId,
+                            limit=limit)
+        )
+
+    def info(self):
+        pass
+        # TODO
+    
+    def listComments(self):
+        pass
+        # TODO
+
+
+class _API_CREATOR(_CHILD_API):
+    def get(self, creatorId: str):
+        return types.APICreatorGet(
+            **self._api.get('/creator.get', creatorId=creatorId)
+        )
+    
+    def listRecommended(self, limit=8):
+        return types.APICreatorListRecommended(
+            **self._api.get('/creator.listRecommended', limit=limit)
+        )
+    
+    def listRelated(self, userId: str | int, limit=8,
+                    method: Literal['diverse'] = 'diverse'):
+        return types.APICreatorListRelated(
+            **self._api.get('/creator.listRelated',
+                            userId=userId, limit=limit, method=method)
+        )
+
+
+class _API_PLAN(_CHILD_API):
+    def listCreator(self, creatorId: str):
+        return types.APIPlanListCreator(
+            **self._api.get('/plan.listCreator', creatorId=creatorId)
+        )
+
+
+class _API_TAG(_CHILD_API):
+    def getFeatured(self, creatorId: str):
+        return types.APITagGetFeatured(
+            **self._api.get('/tag.getFeatured', creatorId=creatorId)
+        )
+
+
+class _API_BELL(_CHILD_API):
+    def countUnread(self):
+        return types.APIBellCountUnread(
+            **self._api.get('/bell.countUnread')
+        )
+
+
+class _API_USER(_CHILD_API):
+    def countUnreadMessages(self):
+        return types.APICountUnreadMessages(
+            **self._api.get('/user.countUnreadMessages')
+        )
+
+
+class _API_NEWSLETTER(_CHILD_API):
+    def countUnreadMessages(self):
+        return types.APINewsletterCountUnread(
+            **self._api.get('/newsletter.countUnread')
+        )

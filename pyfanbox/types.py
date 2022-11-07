@@ -13,8 +13,7 @@ class Cookie(TypedDict):
     value: str
 
 
-class UNDEFINED():
-    pass
+UNDEFINED = type('UNDEFINED', (object,), {})
 
 
 class APIResponce():
@@ -256,30 +255,149 @@ class APICreatorListRelated(APIResponce):
         super().__init__(**kwargs)
 
 
+class _CommentItem(APIResponce):
+    def __init__(self, id: str,
+                 parentCommentId: str,
+                 rootCommentId: str,
+                 body: str,
+                 createdDatetime: str,
+                 likeCount: int,
+                 isLiked: bool,
+                 isOwn: bool,
+                 user: dict,
+                 replies: list[dict] = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+                 
+        self.id = id
+        self.parentCommentId = parentCommentId
+        self.rootCommentId = rootCommentId
+        self.body = body
+        self.createdDatetime = createdDatetime
+        self.likeCount = likeCount
+        self.isLiked = isLiked
+        self.isOwn = isOwn
+        self.user = _User(**user)
+        self.replies = (list(map(lambda x: _CommentItem(**x), replies))
+                        if replies is not UNDEFINED else UNDEFINED)
+
+        super().__init__(**kwargs)
+
+
+class _CommentList(APIResponce):
+    def __init__(self, items: list, nextUrl: str, **kwargs) -> None:
+        self.items = items
+        self.nextUrl = nextUrl
+        super().__init__(**kwargs)
+
+
+class _ShortPostInfo(APIResponce):
+    def __init__(self, id: str,
+                 title: str,
+                 publishedDatetime: str,
+                 **kwargs) -> None:
+
+        self.id = id
+        self.title = title
+        self.publishedDatetime = publishedDatetime
+
+        super().__init__(**kwargs)
+
+
+class _File(APIResponce):
+    def __init__(self, id: str,
+                 name: str,
+                 extension: str,
+                 size: int,
+                 url: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.name = name
+        self.extension = extension
+        self.size = size
+        self.url = url
+
+        super().__init__(**kwargs)
+
+
+class _Image(APIResponce):
+    def __init__(self, id: str,
+                 extension: str,
+                 width: int,
+                 height: int,
+                 originalUrl: str,
+                 thumbnailUrl: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.extension = extension
+        self.width = width
+        self.height = height
+        self.originalUrl = originalUrl
+        self.thumbnailUrl = thumbnailUrl
+
+        super().__init__(**kwargs)
+
+
+class _PostInfoBody(APIResponce):
+    def __init__(self, text: str,
+                 files: list[dict] = UNDEFINED,  # type: ignore
+                 images: list[dict] = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+        self.text = text
+        self.files = list(map(lambda x: _File(**x), files)) if files is not UNDEFINED else UNDEFINED
+        self.images = list(map(lambda x: _Image(**x), images)) if images is not UNDEFINED else UNDEFINED
+        super().__init__(**kwargs)
+
+
 class _PostInfo(APIResponce):
     def __init__(self, id: str,
                  title: str,
-                 coverImageUrl: str,
                  feeRequired: int,
                  publishedDatetime: str,
                  updatedDatetime: str,
                  type: Literal['file'],
-                 body: | None,
+                 body: dict | None,
                  tags: list[str],
-                 excerpt: ,
                  isLiked: bool,
                  likeCount: int,
                  commentCount: int,
-                 restrictedFor: Literal[1, 2, 3],
-                 isRestricted: ,
-                 user: ,
-                 creatorId: ,
-                 hasAdultContent: ,
-                 commentList: ,
-                 nextPost: ,
-                 prevPost: ,
-                 imageForShare: ,
+                 isRestricted: bool,
+                 user: dict,
+                 creatorId: str,
+                 hasAdultContent: bool,
+                 commentList: dict,
+                 nextPost: dict,
+                 prevPost: dict,
+                 imageForShare: str,
+                 restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
+                 coverImageUrl: str = UNDEFINED,  # type: ignore
+                 excerpt: Literal[''] = UNDEFINED,  # type: ignore
                  **kwargs) -> None:
+        
+        self.id = id
+        self.title = title
+        self.coverImageUrl = coverImageUrl
+        self.feeRequired = feeRequired
+        self.publishedDatetime = publishedDatetime
+        self.updatedDatetime = updatedDatetime
+        self.type = type
+        self.body = _PostInfoBody(**body) if body is not None else None
+        self.tags = tags
+        self.excerpt = excerpt
+        self.isLiked = isLiked
+        self.likeCount = likeCount
+        self.commentCount = commentCount
+        self.restrictedFor = restrictedFor
+        self.isRestricted = isRestricted
+        self.user = _User(**user)
+        self.creatorId = creatorId
+        self.hasAdultContent = hasAdultContent
+        self.commentList = _CommentList(**commentList)
+        self.nextPost = _ShortPostInfo(**nextPost)
+        self.prevPost = _ShortPostInfo(**prevPost)
+        self.imageForShare = imageForShare
+
         super().__init__(**kwargs)
 
 

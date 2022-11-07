@@ -24,8 +24,7 @@ def _testout(data: str | bytes | dict[Any, Any] | pyfanbox.types.APIResponce):
 def main():
     FANBOXSESSID = pyfanbox.auth.get_sessid()
     api = pyfanbox.CC_FANBOX_API(FANBOXSESSID)
-    retponce = api.CREATOR.get('ashjdajsh')
-    retponce.body.
+    _testout(api.POST.info('4294891'))
 
 
 main()

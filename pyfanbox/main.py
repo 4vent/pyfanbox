@@ -60,7 +60,9 @@ class _API_POST(_CHILD_API):
         )
 
     def info(self, postId: int):
-        return self._api.get('/post.info', postId=postId)
+        return types.APIPostInfo(
+            **self._api.get('/post.info', postId=postId)
+        )
     
     def listComments(self):
         pass

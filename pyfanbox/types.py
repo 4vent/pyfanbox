@@ -1,6 +1,6 @@
 import json
 import warnings
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NewType, TypedDict
 
 
 class Cookie(TypedDict):
@@ -15,23 +15,28 @@ class Cookie(TypedDict):
 
 UNDEFINED = type('UNDEFINED', (object,), {})
 
-
-class APIResponce():
-    def __init__(self, **kwargs) -> None:
-        for k, v in kwargs:
-            warnings.warn('Unknown Key found. (Module bug or Updated Fanbox API.)\n'
-                          'You can use this key but there is no autocomplete.')
-            setattr(self, k, v)
+Uri = NewType('Uri', str)
+ISOTime = NewType('ISOTime', str)
 
 
 class FanboxJSONEncoder(json.encoder.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, APIResponce):
             return {k: v for k, v in o.__dict__.items()
-                    if k not in [] or not v == UNDEFINED}
+                    if k not in [] and not v == UNDEFINED}
         else:
             return super().default(o)
 
+
+class APIResponce():
+    def __init__(self, **kwargs) -> None:
+        for k, v in kwargs.items():
+            warnings.warn(f'Unknown Key "{k}" found. (Module bug or Updated Fanbox API.) '
+                          'You can use this key but there is no autocomplete.')
+            setattr(self, k, v)
+
+
+# === API Body Element ===
 
 class _User(APIResponce):
     def __init__(self, userId: str,
@@ -41,7 +46,7 @@ class _User(APIResponce):
         
         self.userId = userId
         self.name = name
-        self.iconUrl = iconUrl
+        self.iconUrl = Uri(iconUrl)
 
         super().__init__(**kwargs)
 
@@ -55,135 +60,9 @@ class _ProfileItem(APIResponce):
         
         self.id = id
         self.type = type
-        self.imageUrl = imageUrl
-        self.thumbnailUrl = thumbnailUrl
+        self.imageUrl = Uri(imageUrl)
+        self.thumbnailUrl = Uri(thumbnailUrl)
 
-        super().__init__(**kwargs)
-
-
-class APIPostPaginate(APIResponce):
-    def __init__(self, body: list[str], **kwargs) -> None:
-        self.body = body
-        super().__init__(**kwargs)
-
-
-class _Creator(APIResponce):
-    def __init__(self, user: dict,
-                 creatorId: str,
-                 description: str,
-                 hasAdultContent: bool,
-                 coverImageUrl: str,
-                 profileLinks: list[str],
-                 profileItems: list[dict],
-                 isFollowed: bool,
-                 isSupported: bool,
-                 isStopped: bool,
-                 isAcceptingRequest: bool,
-                 hasBoothShop: bool,
-                 **kwargs) -> None:
-        
-        self.user = _User(**user)
-        self.creatorId = creatorId
-        self.description = description
-        self.hasAdultContent = hasAdultContent
-        self.coverImageUrl = coverImageUrl
-        self.profileLinks = profileLinks
-        self.profileItems = list(map(lambda x: _ProfileItem(**x), profileItems))
-        self.isFollowed = isFollowed
-        self.isSupported = isSupported
-        self.isStopped = isStopped
-        self.isAcceptingRequest = isAcceptingRequest
-        self.hasBoothShop = hasBoothShop
-                 
-        super().__init__(**kwargs)
-
-
-class APICreatorGet(APIResponce):
-    def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _Creator(**body)
-        super().__init__(**kwargs)
-
-
-class _Plan(APIResponce):
-    def __init__(self, id: str,
-                 title: str,
-                 fee: int,
-                 description: str,
-                 coverImageUrl: str,
-                 user: dict,
-                 creatorId: str,
-                 hasAdultContent: bool,
-                 paymentMethod: str,
-                 **kwargs) -> None:
-        
-        self.id = id
-        self.title = title
-        self.fee = fee
-        self.description = description
-        self.coverImageUrl = coverImageUrl
-        self.user = _User(**user)
-        self.creatorId = creatorId
-        self.hasAdultContent = hasAdultContent
-        self.paymentMethod = paymentMethod
-
-        super().__init__(**kwargs)
-
-
-class APIPlanListCreator(APIResponce):
-    def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Plan(**x), body))
-        super().__init__(**kwargs)
-
-
-class _Tag(APIResponce):
-    def __init__(self, tag: str,
-                 count: int,
-                 coverImageUrl: str,
-                 **kwargs) -> None:
-        
-        self.tag = tag
-        self.count = count
-        self.coverImageUrl = coverImageUrl
-
-        super().__init__(**kwargs)
-
-
-class APITagGetFeatured(APIResponce):
-    def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Tag(**x), body))
-        super().__init__(**kwargs)
-
-
-class _BellCountUnreadBody(APIResponce):
-    def __init__(self, count: int,
-                 **kwargs) -> None:
-        
-        self.count = count
-
-        super().__init__(**kwargs)
-
-
-class APIBellCountUnread(APIResponce):
-    def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _BellCountUnreadBody(**body)
-        super().__init__(**kwargs)
-
-
-class APICountUnreadMessages(APIResponce):
-    def __init__(self, body: int, **kwargs) -> None:
-        self.body = body
-        super().__init__(**kwargs)
-
-
-class APINewsletterCountUnread(APIResponce):
-    def __init__(self, body: int, **kwargs) -> None:
-        self.body = body
-        super().__init__(**kwargs)
-
-
-class APICreatorListRecommended(APIResponce):
-    def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Creator(**x), body))
         super().__init__(**kwargs)
 
 
@@ -192,7 +71,7 @@ class _Cover(APIResponce):
                  url: str,
                  **kwargs) -> None:
         self.type = type
-        self.url = url
+        self.url = Uri(url)
         super().__init__(**kwargs)
 
         if type not in ['cover_image']:
@@ -220,8 +99,8 @@ class _PostItem(APIResponce):
         self.id = id
         self.title = title
         self.feeRequired = feeRequired
-        self.publishedDatetime = publishedDatetime
-        self.updatedDatetime = updatedDatetime
+        self.publishedDatetime = ISOTime(publishedDatetime)
+        self.updatedDatetime = ISOTime(updatedDatetime)
         self.tags = tags
         self.isLiked = isLiked
         self.likeCount = likeCount
@@ -236,22 +115,50 @@ class _PostItem(APIResponce):
         super().__init__(**kwargs)
 
 
-class _PostListCreator(APIResponce):
-    def __init__(self, items: list[dict], nextUrl: str, **kwargs) -> None:
-        self.items = list(map(lambda x: _PostItem(**x), items))
-        self.nextUrl = nextUrl
+class _File(APIResponce):
+    def __init__(self, id: str,
+                 name: str,
+                 extension: str,
+                 size: int,
+                 url: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.name = name
+        self.extension = extension
+        self.size = size
+        self.url = Uri(url)
+
         super().__init__(**kwargs)
 
 
-class APIPostListCreator(APIResponce):
-    def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _PostListCreator(**body)
+class _Image(APIResponce):
+    def __init__(self, id: str,
+                 extension: str,
+                 width: int,
+                 height: int,
+                 originalUrl: str,
+                 thumbnailUrl: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.extension = extension
+        self.width = width
+        self.height = height
+        self.originalUrl = Uri(originalUrl)
+        self.thumbnailUrl = Uri(thumbnailUrl)
+
         super().__init__(**kwargs)
 
 
-class APICreatorListRelated(APIResponce):
-    def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Creator(**x), body))
+class _PostInfoBody(APIResponce):
+    def __init__(self, text: str = UNDEFINED,  # type: ignore
+                 files: list[dict] = UNDEFINED,  # type: ignore
+                 images: list[dict] = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+        self.text = text
+        self.files = list(map(lambda x: _File(**x), files)) if files is not UNDEFINED else UNDEFINED
+        self.images = list(map(lambda x: _Image(**x), images)) if images is not UNDEFINED else UNDEFINED
         super().__init__(**kwargs)
 
 
@@ -272,7 +179,7 @@ class _CommentItem(APIResponce):
         self.parentCommentId = parentCommentId
         self.rootCommentId = rootCommentId
         self.body = body
-        self.createdDatetime = createdDatetime
+        self.createdDatetime = ISOTime(createdDatetime)
         self.likeCount = likeCount
         self.isLiked = isLiked
         self.isOwn = isOwn
@@ -286,7 +193,7 @@ class _CommentItem(APIResponce):
 class _CommentList(APIResponce):
     def __init__(self, items: list, nextUrl: str, **kwargs) -> None:
         self.items = items
-        self.nextUrl = nextUrl
+        self.nextUrl = Uri(nextUrl)
         super().__init__(**kwargs)
 
 
@@ -298,55 +205,17 @@ class _ShortPostInfo(APIResponce):
 
         self.id = id
         self.title = title
-        self.publishedDatetime = publishedDatetime
+        self.publishedDatetime = ISOTime(publishedDatetime)
 
         super().__init__(**kwargs)
 
 
-class _File(APIResponce):
-    def __init__(self, id: str,
-                 name: str,
-                 extension: str,
-                 size: int,
-                 url: str,
-                 **kwargs) -> None:
-        
-        self.id = id
-        self.name = name
-        self.extension = extension
-        self.size = size
-        self.url = url
+# === API Body ===
 
-        super().__init__(**kwargs)
-
-
-class _Image(APIResponce):
-    def __init__(self, id: str,
-                 extension: str,
-                 width: int,
-                 height: int,
-                 originalUrl: str,
-                 thumbnailUrl: str,
-                 **kwargs) -> None:
-        
-        self.id = id
-        self.extension = extension
-        self.width = width
-        self.height = height
-        self.originalUrl = originalUrl
-        self.thumbnailUrl = thumbnailUrl
-
-        super().__init__(**kwargs)
-
-
-class _PostInfoBody(APIResponce):
-    def __init__(self, text: str,
-                 files: list[dict] = UNDEFINED,  # type: ignore
-                 images: list[dict] = UNDEFINED,  # type: ignore
-                 **kwargs) -> None:
-        self.text = text
-        self.files = list(map(lambda x: _File(**x), files)) if files is not UNDEFINED else UNDEFINED
-        self.images = list(map(lambda x: _Image(**x), images)) if images is not UNDEFINED else UNDEFINED
+class _PostListCreator(APIResponce):
+    def __init__(self, items: list[dict], nextUrl: str, **kwargs) -> None:
+        self.items = list(map(lambda x: _PostItem(**x), items))
+        self.nextUrl = Uri(nextUrl)
         super().__init__(**kwargs)
 
 
@@ -367,8 +236,8 @@ class _PostInfo(APIResponce):
                  creatorId: str,
                  hasAdultContent: bool,
                  commentList: dict,
-                 nextPost: dict,
-                 prevPost: dict,
+                 nextPost: dict | None,
+                 prevPost: dict | None,
                  imageForShare: str,
                  restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
                  coverImageUrl: str = UNDEFINED,  # type: ignore
@@ -377,10 +246,10 @@ class _PostInfo(APIResponce):
         
         self.id = id
         self.title = title
-        self.coverImageUrl = coverImageUrl
+        self.coverImageUrl = Uri(coverImageUrl)
         self.feeRequired = feeRequired
-        self.publishedDatetime = publishedDatetime
-        self.updatedDatetime = updatedDatetime
+        self.publishedDatetime = ISOTime(publishedDatetime)
+        self.updatedDatetime = ISOTime(updatedDatetime)
         self.type = type
         self.body = _PostInfoBody(**body) if body is not None else None
         self.tags = tags
@@ -394,14 +263,167 @@ class _PostInfo(APIResponce):
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
         self.commentList = _CommentList(**commentList)
-        self.nextPost = _ShortPostInfo(**nextPost)
-        self.prevPost = _ShortPostInfo(**prevPost)
+        self.nextPost = _ShortPostInfo(**nextPost) if nextPost is not None else None
+        self.prevPost = _ShortPostInfo(**prevPost) if prevPost is not None else None
         self.imageForShare = imageForShare
 
+        super().__init__(**kwargs)
+
+
+class _Plan(APIResponce):
+    def __init__(self, id: str,
+                 title: str,
+                 fee: int,
+                 description: str,
+                 coverImageUrl: str,
+                 user: dict,
+                 creatorId: str,
+                 hasAdultContent: bool,
+                 paymentMethod: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.title = title
+        self.fee = fee
+        self.description = description
+        self.coverImageUrl = Uri(coverImageUrl)
+        self.user = _User(**user)
+        self.creatorId = creatorId
+        self.hasAdultContent = hasAdultContent
+        self.paymentMethod = paymentMethod
+
+        super().__init__(**kwargs)
+
+
+class _Creator(APIResponce):
+    def __init__(self, user: dict,
+                 creatorId: str,
+                 description: str,
+                 hasAdultContent: bool,
+                 coverImageUrl: str,
+                 profileLinks: list[str],
+                 profileItems: list[dict],
+                 isFollowed: bool,
+                 isSupported: bool,
+                 isStopped: bool,
+                 isAcceptingRequest: bool,
+                 hasBoothShop: bool,
+                 **kwargs) -> None:
+        
+        self.user = _User(**user)
+        self.creatorId = creatorId
+        self.description = description
+        self.hasAdultContent = hasAdultContent
+        self.coverImageUrl = Uri(coverImageUrl)
+        self.profileLinks = profileLinks
+        self.profileItems = list(map(lambda x: _ProfileItem(**x), profileItems))
+        self.isFollowed = isFollowed
+        self.isSupported = isSupported
+        self.isStopped = isStopped
+        self.isAcceptingRequest = isAcceptingRequest
+        self.hasBoothShop = hasBoothShop
+                 
+        super().__init__(**kwargs)
+
+
+class _Tag(APIResponce):
+    def __init__(self, tag: str,
+                 count: int,
+                 coverImageUrl: str,
+                 **kwargs) -> None:
+        
+        self.tag = tag
+        self.count = count
+        self.coverImageUrl = Uri(coverImageUrl)
+
+        super().__init__(**kwargs)
+
+
+class _BellCountUnreadBody(APIResponce):
+    def __init__(self, count: int,
+                 **kwargs) -> None:
+        
+        self.count = count
+
+        super().__init__(**kwargs)
+
+
+# === API Post Responce Types ===
+
+class APIPostPaginate(APIResponce):
+    def __init__(self, body: list[str], **kwargs) -> None:
+        self.body = body
+        super().__init__(**kwargs)
+
+
+class APIPostListCreator(APIResponce):
+    def __init__(self, body: dict, **kwargs) -> None:
+        self.body = _PostListCreator(**body)
         super().__init__(**kwargs)
 
 
 class APIPostInfo(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
         self.body = _PostInfo(**body)
+        super().__init__(**kwargs)
+
+
+# === API Creator Responce Types ===
+
+class APICreatorGet(APIResponce):
+    def __init__(self, body: dict, **kwargs) -> None:
+        self.body = _Creator(**body)
+        super().__init__(**kwargs)
+
+
+class APICreatorListRecommended(APIResponce):
+    def __init__(self, body: list[dict], **kwargs) -> None:
+        self.body = list(map(lambda x: _Creator(**x), body))
+        super().__init__(**kwargs)
+
+
+class APICreatorListRelated(APIResponce):
+    def __init__(self, body: list[dict], **kwargs) -> None:
+        self.body = list(map(lambda x: _Creator(**x), body))
+        super().__init__(**kwargs)
+
+
+# === API Plan Responce Types ===
+
+class APIPlanListCreator(APIResponce):
+    def __init__(self, body: list[dict], **kwargs) -> None:
+        self.body = list(map(lambda x: _Plan(**x), body))
+        super().__init__(**kwargs)
+
+
+# === API Tag Responce Types ===
+
+class APITagGetFeatured(APIResponce):
+    def __init__(self, body: list[dict], **kwargs) -> None:
+        self.body = list(map(lambda x: _Tag(**x), body))
+        super().__init__(**kwargs)
+
+
+# === API Bell Responce Types ===
+
+
+class APIBellCountUnread(APIResponce):
+    def __init__(self, body: dict, **kwargs) -> None:
+        self.body = _BellCountUnreadBody(**body)
+        super().__init__(**kwargs)
+
+
+# === API User Responce Types ===
+
+class APIUserCountUnreadMessages(APIResponce):
+    def __init__(self, body: int, **kwargs) -> None:
+        self.body = body
+        super().__init__(**kwargs)
+
+
+# === API Newsletter Responce Types ===
+
+class APINewsletterCountUnread(APIResponce):
+    def __init__(self, body: int, **kwargs) -> None:
+        self.body = body
         super().__init__(**kwargs)

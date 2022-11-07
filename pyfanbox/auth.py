@@ -10,13 +10,18 @@ def prepare_driver():
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     from webdriver_manager.chrome import ChromeDriverManager
-
-    LOCALAPPDATA = os.getenv('LOCALAPPDATA')
-    if LOCALAPPDATA is not None:
-        CHROME_USER_DATA_PATH = LOCALAPPDATA + r'\Google\Chrome\User Data'
+    from platform import system
+    if system() == 'Windows':
+        LOCALAPPDATA = os.getenv('LOCALAPPDATA')
+        if LOCALAPPDATA is not None:
+            CHROME_USER_DATA_PATH = LOCALAPPDATA + r'\Google\Chrome\User Data'
+        else:
+            raise RuntimeError('%LOCALAPPDATA% is None!!!')
+    elif system() == "Darwin":
+        CHROME_USER_DATA_PATH = os.path.expanduser(r'~/Library/Google/Chrome')
     else:
-        raise RuntimeError('%LOCALAPPDATA% is None!!!')
-
+        raise OSError("This OS not supporting!!!")
+    
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_experimental_option(
         'excludeSwitches', ['enable-logging'])

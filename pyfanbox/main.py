@@ -59,9 +59,8 @@ class _API_POST(_CHILD_API):
                             limit=limit)
         )
 
-    def info(self):
-        pass
-        # TODO
+    def info(self, postId: int):
+        return self._api.get('/post.info', postId=postId)
     
     def listComments(self):
         pass
@@ -120,3 +119,4 @@ class _API_NEWSLETTER(_CHILD_API):
         return types.APINewsletterCountUnread(
             **self._api.get('/newsletter.countUnread')
         )
+

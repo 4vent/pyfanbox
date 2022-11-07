@@ -6,7 +6,7 @@ import pyfanbox
 
 
 def _testout(data: str | bytes | dict[Any, Any] | pyfanbox.types.APIResponce):
-    filename = 'log\\' + datetime.now().isoformat().replace(':', '-')
+    filename = 'log/' + datetime.now().isoformat().replace(':', '-')
     if isinstance(data, dict) or isinstance(data, pyfanbox.types.APIResponce):
         with open(filename + '.json', 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False,
@@ -24,7 +24,8 @@ def _testout(data: str | bytes | dict[Any, Any] | pyfanbox.types.APIResponce):
 def main():
     FANBOXSESSID = pyfanbox.auth.get_sessid()
     api = pyfanbox.CC_FANBOX_API(FANBOXSESSID)
-    _testout(api.CREATOR.listRelated(4218636))
+    retponce = api.CREATOR.get('ashjdajsh')
+    retponce.body.
 
 
 main()

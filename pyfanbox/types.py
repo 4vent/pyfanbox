@@ -254,3 +254,36 @@ class APICreatorListRelated(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
         self.body = list(map(lambda x: _Creator(**x), body))
         super().__init__(**kwargs)
+
+
+class _PostInfo(APIResponce):
+    def __init__(self, id: str,
+                 title: str,
+                 coverImageUrl: str,
+                 feeRequired: int,
+                 publishedDatetime: str,
+                 updatedDatetime: str,
+                 type: Literal['file'],
+                 body: | None,
+                 tags: list[str],
+                 excerpt: ,
+                 isLiked: bool,
+                 likeCount: int,
+                 commentCount: int,
+                 restrictedFor: Literal[1, 2, 3],
+                 isRestricted: ,
+                 user: ,
+                 creatorId: ,
+                 hasAdultContent: ,
+                 commentList: ,
+                 nextPost: ,
+                 prevPost: ,
+                 imageForShare: ,
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
+
+
+class APIPostInfo(APIResponce):
+    def __init__(self, body: dict, **kwargs) -> None:
+        self.body = _PostInfo(**body)
+        super().__init__(**kwargs)

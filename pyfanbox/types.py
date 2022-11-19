@@ -2,6 +2,25 @@ import json
 import warnings
 from typing import Any, Literal, NewType, TypedDict
 
+UNDEFINED = type('UNDEFINED', (object,), {})
+
+URL = NewType('URL', str)
+ISODateTime = NewType('ISODateTime', str)
+
+
+def cvtlist(_l: list[dict], type: type) -> list[Any]:
+    if _l == UNDEFINED:
+        return UNDEFINED  # type: ignore
+    else:
+        return list(map(lambda x: type(**x), _l))
+
+
+def cvtdict(_d: dict[str, dict], type: type) -> dict[str, Any]:
+    if _d == UNDEFINED:
+        return UNDEFINED  # type: ignore
+    else:
+        return {k: type(**v) for k, v in _d.items()}
+
 
 class Cookie(TypedDict):
     domain: str
@@ -11,12 +30,6 @@ class Cookie(TypedDict):
     path: str
     secure: bool
     value: str
-
-
-UNDEFINED = type('UNDEFINED', (object,), {})
-
-Uri = NewType('Uri', str)
-ISOTime = NewType('ISOTime', str)
 
 
 class FanboxJSONEncoder(json.encoder.JSONEncoder):
@@ -31,7 +44,7 @@ class FanboxJSONEncoder(json.encoder.JSONEncoder):
 class APIResponce():
     def __init__(self, **kwargs) -> None:
         for k, v in kwargs.items():
-            warnings.warn(f'Unknown Key "{k}" found. (Module bug or Updated Fanbox API.) '
+            warnings.warn(f'Unknown Key "{k}" in <{type(self).__name__}>. (Module bug or Updated Fanbox API.) '
                           'You can use this key but there is no autocomplete.')
             setattr(self, k, v)
 
@@ -41,12 +54,12 @@ class APIResponce():
 class _User(APIResponce):
     def __init__(self, userId: str,
                  name: str,
-                 iconUrl: str,
+                 iconUrl: str | None,
                  **kwargs) -> None:
         
         self.userId = userId
         self.name = name
-        self.iconUrl = Uri(iconUrl)
+        self.iconUrl = URL(iconUrl) if iconUrl is not None else None
 
         super().__init__(**kwargs)
 
@@ -60,21 +73,21 @@ class _ProfileItem(APIResponce):
         
         self.id = id
         self.type = type
-        self.imageUrl = Uri(imageUrl)
-        self.thumbnailUrl = Uri(thumbnailUrl)
+        self.imageUrl = URL(imageUrl)
+        self.thumbnailUrl = URL(thumbnailUrl)
 
         super().__init__(**kwargs)
 
 
 class _Cover(APIResponce):
-    def __init__(self, type: Literal['cover_image'],
+    def __init__(self, type: Literal['cover_image', 'post_image'],
                  url: str,
                  **kwargs) -> None:
         self.type = type
-        self.url = Uri(url)
+        self.url = URL(url)
         super().__init__(**kwargs)
 
-        if type not in ['cover_image']:
+        if type not in ['cover_image', 'post_image']:
             warnings.warn(f'Undefined type of "Cover.type": {type}')
 
 
@@ -99,8 +112,8 @@ class _PostItem(APIResponce):
         self.id = id
         self.title = title
         self.feeRequired = feeRequired
-        self.publishedDatetime = ISOTime(publishedDatetime)
-        self.updatedDatetime = ISOTime(updatedDatetime)
+        self.publishedDatetime = ISODateTime(publishedDatetime)
+        self.updatedDatetime = ISODateTime(updatedDatetime)
         self.tags = tags
         self.isLiked = isLiked
         self.likeCount = likeCount
@@ -111,23 +124,6 @@ class _PostItem(APIResponce):
         self.hasAdultContent = hasAdultContent
         self.cover = _Cover(**cover) if cover is not None else None
         self.excerpt = excerpt
-
-        super().__init__(**kwargs)
-
-
-class _File(APIResponce):
-    def __init__(self, id: str,
-                 name: str,
-                 extension: str,
-                 size: int,
-                 url: str,
-                 **kwargs) -> None:
-        
-        self.id = id
-        self.name = name
-        self.extension = extension
-        self.size = size
-        self.url = Uri(url)
 
         super().__init__(**kwargs)
 
@@ -145,8 +141,89 @@ class _Image(APIResponce):
         self.extension = extension
         self.width = width
         self.height = height
-        self.originalUrl = Uri(originalUrl)
-        self.thumbnailUrl = Uri(thumbnailUrl)
+        self.originalUrl = URL(originalUrl)
+        self.thumbnailUrl = URL(thumbnailUrl)
+
+        super().__init__(**kwargs)
+
+
+class _File(APIResponce):
+    def __init__(self, id: str,
+                 name: str,
+                 extension: str,
+                 size: int,
+                 url: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.name = name
+        self.extension = extension
+        self.size = size
+        self.url = URL(url)
+
+        super().__init__(**kwargs)
+
+
+class _ArticleParagraphStyle(APIResponce):
+    def __init__(self, type: Literal['bold'],
+                 offset: int,
+                 length: int,
+                 **kwargs) -> None:
+        
+        self.type = type
+        self.offset = offset
+        self.length = length
+
+        super().__init__(**kwargs)
+
+
+class _ArticleParagraphLink(APIResponce):
+    def __init__(self, offset: int,
+                 length: int,
+                 url: str,
+                 **kwargs) -> None:
+        
+        self.offset = offset
+        self.length = length
+        self.url = URL(url)
+
+        super().__init__(**kwargs)
+
+
+class _ArticleBlock(APIResponce):
+    def __init__(self, type: Literal['p', 'header', 'image', 'file', 'url_embed'],
+                 text: str = UNDEFINED,  # type: ignore
+                 styles: list[dict] = UNDEFINED,  # type: ignore
+                 imageId: str = UNDEFINED,  # type: ignore
+                 links: list[dict] = UNDEFINED,  # type: ignore
+                 fileId: str = UNDEFINED,  # type: ignore
+                 urlEmbedId: str = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+
+        self.type = type
+        self.text = text
+        self.styles: list[_ArticleParagraphStyle] = cvtlist(styles, _ArticleParagraphStyle)
+        self.imageId = imageId
+        self.links: list[_ArticleParagraphLink] = cvtlist(links, _ArticleParagraphLink)
+        self.fileId = fileId
+        self.urlEmbedId = urlEmbedId
+
+        super().__init__(**kwargs)
+
+
+class _UrlEmbed(APIResponce):
+    def __init__(self, id: str,
+                 type: str,
+                 html: str = UNDEFINED,  # type: ignore
+                 postInfo: dict = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.type = type
+        if type == 'fanbox.post':
+            self.postInfo = _EmbedPostInfo(**postInfo)
+        else:
+            self.html = html
 
         super().__init__(**kwargs)
 
@@ -155,10 +232,23 @@ class _PostInfoBody(APIResponce):
     def __init__(self, text: str = UNDEFINED,  # type: ignore
                  files: list[dict] = UNDEFINED,  # type: ignore
                  images: list[dict] = UNDEFINED,  # type: ignore
+
+                 blocks: list[dict] = UNDEFINED,  # type: ignore
+                 imageMap: dict[str, dict] = UNDEFINED,  # type: ignore
+                 fileMap: dict[str, dict] = UNDEFINED,  # type: ignore
+                 embedMap: dict = UNDEFINED,  # type: ignore
+                 urlEmbedMap: dict[str, dict] = UNDEFINED,  # type: ignore
                  **kwargs) -> None:
+                
         self.text = text
-        self.files = list(map(lambda x: _File(**x), files)) if files is not UNDEFINED else UNDEFINED
-        self.images = list(map(lambda x: _Image(**x), images)) if images is not UNDEFINED else UNDEFINED
+        self.files: list[_File] = cvtlist(files, _File)
+        self.images: list[_Image] = cvtlist(images, _Image)
+
+        self.blocks: list[_ArticleBlock] = cvtlist(blocks, _ArticleBlock)
+        self.imageMap: dict[str, _Image] = cvtdict(imageMap, _Image)
+        self.fileMap: dict[str, _File] = cvtdict(fileMap, _File)
+        self.embedMap = embedMap
+        self.urlEmbedMap: dict[str, _UrlEmbed] = cvtdict(urlEmbedMap, _UrlEmbed)
         super().__init__(**kwargs)
 
 
@@ -179,21 +269,20 @@ class _CommentItem(APIResponce):
         self.parentCommentId = parentCommentId
         self.rootCommentId = rootCommentId
         self.body = body
-        self.createdDatetime = ISOTime(createdDatetime)
+        self.createdDatetime = ISODateTime(createdDatetime)
         self.likeCount = likeCount
         self.isLiked = isLiked
         self.isOwn = isOwn
         self.user = _User(**user)
-        self.replies = (list(map(lambda x: _CommentItem(**x), replies))
-                        if replies is not UNDEFINED else UNDEFINED)
+        self.replies: list[_CommentItem] = cvtlist(replies, _CommentItem)
 
         super().__init__(**kwargs)
 
 
 class _CommentList(APIResponce):
-    def __init__(self, items: list, nextUrl: str, **kwargs) -> None:
+    def __init__(self, items: list, nextUrl: str | None, **kwargs) -> None:
         self.items = items
-        self.nextUrl = Uri(nextUrl)
+        self.nextUrl = URL(nextUrl) if nextUrl is not None else None
         super().__init__(**kwargs)
 
 
@@ -205,8 +294,20 @@ class _ShortPostInfo(APIResponce):
 
         self.id = id
         self.title = title
-        self.publishedDatetime = ISOTime(publishedDatetime)
+        self.publishedDatetime = ISODateTime(publishedDatetime)
 
+        super().__init__(**kwargs)
+
+
+class _Payment_Creator(APIResponce):
+    def __init__(self, user: dict,
+                 creatorId: str,
+                 isActive: bool,
+                 **kwargs) -> None:
+
+        self.user = _User(**user)
+        self.creatorId = creatorId
+        self.isActive = isActive
         super().__init__(**kwargs)
 
 
@@ -214,8 +315,8 @@ class _ShortPostInfo(APIResponce):
 
 class _PostListCreator(APIResponce):
     def __init__(self, items: list[dict], nextUrl: str, **kwargs) -> None:
-        self.items = list(map(lambda x: _PostItem(**x), items))
-        self.nextUrl = Uri(nextUrl)
+        self.items: list[_PostItem] = cvtlist(items, _PostItem)
+        self.nextUrl = URL(nextUrl)
         super().__init__(**kwargs)
 
 
@@ -226,6 +327,7 @@ class _PostInfo(APIResponce):
                  publishedDatetime: str,
                  updatedDatetime: str,
                  type: Literal['file'],
+                 coverImageUrl: str | None,
                  body: dict | None,
                  tags: list[str],
                  isLiked: bool,
@@ -240,16 +342,15 @@ class _PostInfo(APIResponce):
                  prevPost: dict | None,
                  imageForShare: str,
                  restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
-                 coverImageUrl: str = UNDEFINED,  # type: ignore
                  excerpt: Literal[''] = UNDEFINED,  # type: ignore
                  **kwargs) -> None:
         
         self.id = id
         self.title = title
-        self.coverImageUrl = Uri(coverImageUrl)
+        self.coverImageUrl = URL(coverImageUrl) if coverImageUrl is not None else None
         self.feeRequired = feeRequired
-        self.publishedDatetime = ISOTime(publishedDatetime)
-        self.updatedDatetime = ISOTime(updatedDatetime)
+        self.publishedDatetime = ISODateTime(publishedDatetime)
+        self.updatedDatetime = ISODateTime(updatedDatetime)
         self.type = type
         self.body = _PostInfoBody(**body) if body is not None else None
         self.tags = tags
@@ -270,6 +371,43 @@ class _PostInfo(APIResponce):
         super().__init__(**kwargs)
 
 
+class _EmbedPostInfo(APIResponce):
+    def __init__(self, id: str,
+                 title: str,
+                 feeRequired: int,
+                 publishedDatetime: str,
+                 updatedDatetime: str,
+                 tags: list[str],
+                 isLiked: bool,
+                 likeCount: int,
+                 commentCount: int,
+                 isRestricted: bool,
+                 user: dict,
+                 creatorId: str,
+                 hasAdultContent: bool,
+                 restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
+                 excerpt: Literal[''] = UNDEFINED,  # type: ignore
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.title = title
+        self.feeRequired = feeRequired
+        self.publishedDatetime = ISODateTime(publishedDatetime)
+        self.updatedDatetime = ISODateTime(updatedDatetime)
+        self.tags = tags
+        self.excerpt = excerpt
+        self.isLiked = isLiked
+        self.likeCount = likeCount
+        self.commentCount = commentCount
+        self.restrictedFor = restrictedFor
+        self.isRestricted = isRestricted
+        self.user = _User(**user)
+        self.creatorId = creatorId
+        self.hasAdultContent = hasAdultContent
+
+        super().__init__(**kwargs)
+
+
 class _Plan(APIResponce):
     def __init__(self, id: str,
                  title: str,
@@ -286,7 +424,7 @@ class _Plan(APIResponce):
         self.title = title
         self.fee = fee
         self.description = description
-        self.coverImageUrl = Uri(coverImageUrl)
+        self.coverImageUrl = URL(coverImageUrl)
         self.user = _User(**user)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
@@ -314,9 +452,9 @@ class _Creator(APIResponce):
         self.creatorId = creatorId
         self.description = description
         self.hasAdultContent = hasAdultContent
-        self.coverImageUrl = Uri(coverImageUrl)
+        self.coverImageUrl = URL(coverImageUrl)
         self.profileLinks = profileLinks
-        self.profileItems = list(map(lambda x: _ProfileItem(**x), profileItems))
+        self.profileItems: list[_ProfileItem] = cvtlist(profileItems, _ProfileItem)
         self.isFollowed = isFollowed
         self.isSupported = isSupported
         self.isStopped = isStopped
@@ -334,7 +472,7 @@ class _Tag(APIResponce):
         
         self.tag = tag
         self.count = count
-        self.coverImageUrl = Uri(coverImageUrl)
+        self.coverImageUrl = URL(coverImageUrl)
 
         super().__init__(**kwargs)
 
@@ -348,11 +486,28 @@ class _BellCountUnreadBody(APIResponce):
         super().__init__(**kwargs)
 
 
+class _Payment(APIResponce):
+    def __init__(self, id: str,
+                 creator: dict,
+                 paidAmount: int,
+                 paymentMethod: Literal['paypal'],
+                 paymentDatetime: str,
+                 **kwargs) -> None:
+        
+        self.id = id
+        self.creator = _Payment_Creator(**creator)
+        self.paidAmount = paidAmount
+        self.paymentMethod = paymentMethod
+        self.paymentDatetime = ISODateTime(paymentDatetime)
+
+        super().__init__(**kwargs)
+
+
 # === API Post Responce Types ===
 
 class APIPostPaginate(APIResponce):
     def __init__(self, body: list[str], **kwargs) -> None:
-        self.body = body
+        self.body = list(map(lambda x: URL(x), body))
         super().__init__(**kwargs)
 
 
@@ -368,6 +523,12 @@ class APIPostInfo(APIResponce):
         super().__init__(**kwargs)
 
 
+class APIPostListComments(APIResponce):
+    def __init__(self, body: dict, **kwargs) -> None:
+        self.body = _CommentList(**body)
+        super().__init__(**kwargs)
+
+
 # === API Creator Responce Types ===
 
 class APICreatorGet(APIResponce):
@@ -376,23 +537,17 @@ class APICreatorGet(APIResponce):
         super().__init__(**kwargs)
 
 
-class APICreatorListRecommended(APIResponce):
+class APICreatorList(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Creator(**x), body))
-        super().__init__(**kwargs)
-
-
-class APICreatorListRelated(APIResponce):
-    def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Creator(**x), body))
+        self.body: list[_Creator] = cvtlist(body, _Creator)
         super().__init__(**kwargs)
 
 
 # === API Plan Responce Types ===
 
-class APIPlanListCreator(APIResponce):
+class APIPlanList(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Plan(**x), body))
+        self.body: list[_Plan] = cvtlist(body, _Plan)
         super().__init__(**kwargs)
 
 
@@ -400,7 +555,7 @@ class APIPlanListCreator(APIResponce):
 
 class APITagGetFeatured(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body = list(map(lambda x: _Tag(**x), body))
+        self.body: list[_Tag] = cvtlist(body, _Tag)
         super().__init__(**kwargs)
 
 
@@ -426,4 +581,12 @@ class APIUserCountUnreadMessages(APIResponce):
 class APINewsletterCountUnread(APIResponce):
     def __init__(self, body: int, **kwargs) -> None:
         self.body = body
+        super().__init__(**kwargs)
+
+
+# === API Payment Responce Types ===
+
+class APIPaymentList(APIResponce):
+    def __init__(self, body: list[dict], **kwargs) -> None:
+        self.body: list[_Payment] = cvtlist(body, _Payment)
         super().__init__(**kwargs)

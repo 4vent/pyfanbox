@@ -215,11 +215,15 @@ class _UrlEmbed(APIResponce):
     def __init__(self, id: str,
                  type: str,
                  html: str = UNDEFINED,  # type: ignore
+                 url: str = UNDEFINED,  # type: ignore
+                 host: str = UNDEFINED,  # type: ignore
                  postInfo: dict = UNDEFINED,  # type: ignore
                  **kwargs) -> None:
         
         self.id = id
         self.type = type
+        self.url = url
+        self.host = host
         if type == 'fanbox.post':
             self.postInfo = _EmbedPostInfo(**postInfo)
         else:
@@ -387,6 +391,7 @@ class _EmbedPostInfo(APIResponce):
                  hasAdultContent: bool,
                  restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
                  excerpt: Literal[''] = UNDEFINED,  # type: ignore
+                 cover: dict = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id
@@ -404,6 +409,7 @@ class _EmbedPostInfo(APIResponce):
         self.user = _User(**user)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
+        self.cover = cover
 
         super().__init__(**kwargs)
 

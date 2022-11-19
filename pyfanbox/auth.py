@@ -7,10 +7,11 @@ from . import types
 
 
 def prepare_driver():
+    from platform import system
+
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     from webdriver_manager.chrome import ChromeDriverManager
-    from platform import system
     if system() == 'Windows':
         LOCALAPPDATA = os.getenv('LOCALAPPDATA')
         if LOCALAPPDATA is not None:

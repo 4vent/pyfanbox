@@ -62,7 +62,7 @@ def get_sessid(saved_cookie_path='.pyfanbox\\cookie.json') -> str:
         if not res.status_code == 200:
             raise SessionError()
     except SessionError:
-        if os.path.exists(os.path.dirname(saved_cookie_path)):
+        if not os.path.exists(os.path.dirname(saved_cookie_path)):
             os.makedirs(os.path.dirname(saved_cookie_path))
         cookies = get_fanbox_session_cookies()
         with open(saved_cookie_path, 'w') as f:

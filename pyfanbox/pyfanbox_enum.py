@@ -19,6 +19,7 @@ class ArticleBlockType(str, Enum):
 
 
 class PostType(str, Enum):
+    ARTICLE = 'article'
     FILE = 'file'
 
 
@@ -27,7 +28,7 @@ class PostRestrictedFor(int, Enum):
 
 
 class PostExcerpt(str, Enum):
-    pass
+    _ = ' '
 
 
 class PaymentMethod(str, Enum):

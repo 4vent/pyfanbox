@@ -55,11 +55,12 @@ def main():
     FANBOXSESSID = pyfanbox.auth.get_sessid()
     client = fanbox_getter(FANBOXSESSID)
 
-    current_supportings = client.get_current_supportings()
+    # current_supportings = client.get_current_supportings()
 
-    for creator in current_supportings:
-        posts = client.get_available_contents(creator.creatorId)
-        client.get_all_contents()
-
+    # for creator in current_supportings:
+    #     posts = client.get_available_contents(creator.creatorId)
+    #     client.get_all_contents()
+    
+    _testout(client.POST.info(4770642))
 
 main()

@@ -1,6 +1,7 @@
-/log/
-/cookie.json
-pg.*
-test.*
+*
+!/.gitignore
+!/pyfanbox
 !/test.py
-__pycache__/
+!/mypy.ini
+
+__pycache__

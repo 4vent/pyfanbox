@@ -4,7 +4,7 @@ from urllib import parse
 
 import requests
 
-from . import types
+from . import types, utility
 
 
 class CC_FANBOX_API():
@@ -24,6 +24,7 @@ class CC_FANBOX_API():
         self.USER = _API_USER(self)
         self.NEWSLETTER = _API_NEWSLETTER(self)
         self.PAYMENT = _API_PAYMENT(self)
+        self.util = utility.utility(self)
     
     def get(self, _url: str, **query) -> dict:
         if not _url.startswith('https://'):

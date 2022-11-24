@@ -1,6 +1,6 @@
 import json
 import warnings
-from typing import Any, Literal, NewType, TypedDict
+from typing import Any, Literal, NewType, Type, TypedDict
 
 UNDEFINED = type('UNDEFINED', (object,), {})
 
@@ -8,7 +8,7 @@ URL = NewType('URL', str)
 ISODateTime = NewType('ISODateTime', str)
 
 
-def cvtlist(_l: list[dict], type: type) -> list[Any]:
+def cvtlist(_l: list[dict] | UNDEFINED | None, type: type) -> list[Any]:
     if _l == UNDEFINED:
         return UNDEFINED  # type: ignore
     else:
@@ -192,12 +192,12 @@ class _ArticleParagraphLink(APIResponce):
 
 class _ArticleBlock(APIResponce):
     def __init__(self, type: Literal['p', 'header', 'image', 'file', 'url_embed'],
-                 text: str = UNDEFINED,  # type: ignore
-                 styles: list[dict] = UNDEFINED,  # type: ignore
-                 imageId: str = UNDEFINED,  # type: ignore
-                 links: list[dict] = UNDEFINED,  # type: ignore
-                 fileId: str = UNDEFINED,  # type: ignore
-                 urlEmbedId: str = UNDEFINED,  # type: ignore
+                 text: str | Type[UNDEFINED] = UNDEFINED,
+                 styles: list[dict] | Type[UNDEFINED] = UNDEFINED,
+                 imageId: str | Type[UNDEFINED] = UNDEFINED,
+                 links: list[dict] | Type[UNDEFINED] = UNDEFINED,
+                 fileId: str | Type[UNDEFINED] = UNDEFINED,
+                 urlEmbedId: str | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
 
         self.type = type
@@ -214,10 +214,10 @@ class _ArticleBlock(APIResponce):
 class _UrlEmbed(APIResponce):
     def __init__(self, id: str,
                  type: str,
-                 html: str = UNDEFINED,  # type: ignore
-                 url: str = UNDEFINED,  # type: ignore
-                 host: str = UNDEFINED,  # type: ignore
-                 postInfo: dict = UNDEFINED,  # type: ignore
+                 html: str | Type[UNDEFINED] = UNDEFINED,
+                 url: str | Type[UNDEFINED] = UNDEFINED,
+                 host: str | Type[UNDEFINED] = UNDEFINED,
+                 postInfo: dict | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id
@@ -233,15 +233,14 @@ class _UrlEmbed(APIResponce):
 
 
 class _PostInfoBody(APIResponce):
-    def __init__(self, text: str = UNDEFINED,  # type: ignore
-                 files: list[dict] = UNDEFINED,  # type: ignore
-                 images: list[dict] = UNDEFINED,  # type: ignore
-
-                 blocks: list[dict] = UNDEFINED,  # type: ignore
-                 imageMap: dict[str, dict] = UNDEFINED,  # type: ignore
-                 fileMap: dict[str, dict] = UNDEFINED,  # type: ignore
-                 embedMap: dict = UNDEFINED,  # type: ignore
-                 urlEmbedMap: dict[str, dict] = UNDEFINED,  # type: ignore
+    def __init__(self, text: str | Type[UNDEFINED] = UNDEFINED,
+                 files: list[dict] | Type[UNDEFINED] = UNDEFINED,
+                 images: list[dict] | Type[UNDEFINED] = UNDEFINED,
+                 blocks: list[dict] | Type[UNDEFINED] = UNDEFINED,
+                 imageMap: dict[str, dict] | Type[UNDEFINED] = UNDEFINED,
+                 fileMap: dict[str, dict] | Type[UNDEFINED] = UNDEFINED,
+                 embedMap: dict | Type[UNDEFINED] = UNDEFINED,
+                 urlEmbedMap: dict[str, dict] | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
                 
         self.text = text
@@ -266,7 +265,7 @@ class _CommentItem(APIResponce):
                  isLiked: bool,
                  isOwn: bool,
                  user: dict,
-                 replies: list[dict] = UNDEFINED,  # type: ignore
+                 replies: list[dict] | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
                  
         self.id = id
@@ -345,8 +344,8 @@ class _PostInfo(APIResponce):
                  nextPost: dict | None,
                  prevPost: dict | None,
                  imageForShare: str,
-                 restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
-                 excerpt: Literal[''] = UNDEFINED,  # type: ignore
+                 restrictedFor: Literal[1, 2, 3] | Type[UNDEFINED] = UNDEFINED,
+                 excerpt: Literal[''] | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id
@@ -389,9 +388,9 @@ class _EmbedPostInfo(APIResponce):
                  user: dict,
                  creatorId: str,
                  hasAdultContent: bool,
-                 restrictedFor: Literal[1, 2, 3] = UNDEFINED,  # type: ignore
-                 excerpt: Literal[''] = UNDEFINED,  # type: ignore
-                 cover: dict = UNDEFINED,
+                 restrictedFor: Literal[1, 2, 3] | Type[UNDEFINED] = UNDEFINED,
+                 excerpt: Literal[''] | Type[UNDEFINED] = UNDEFINED,
+                 cover: dict | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id

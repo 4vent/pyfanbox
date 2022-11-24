@@ -1,25 +1,105 @@
 import json
 import warnings
-from typing import Any, Literal, NewType, Type, TypedDict
+from typing import Any, Literal, NewType, Type, TypeVar, TypedDict, overload
+
+from . import pyfanbox_enum as pfenum
 
 UNDEFINED = type('UNDEFINED', (object,), {})
 
 URL = NewType('URL', str)
 ISODateTime = NewType('ISODateTime', str)
 
+_API_RESPONCE = TypeVar('_API_RESPONCE')
+_ENUM_LIKE = TypeVar('_ENUM_LIKE')
+_ENUM_VAL = TypeVar('_ENUM_VAL')
 
-def cvtlist(_l: list[dict] | UNDEFINED | None, type: type) -> list[Any]:
-    if _l == UNDEFINED:
-        return UNDEFINED  # type: ignore
+
+@overload
+def maplist(__list: list[dict[Any, Any]], cls: Type[_API_RESPONCE]) -> list[_API_RESPONCE]: ...
+@overload
+def maplist(__list: Type[UNDEFINED], cls: Any) -> Type[UNDEFINED]: ...
+@overload
+def maplist(__list: None, cls: Any) -> None: ...
+
+
+def maplist(__list: None | Type[UNDEFINED] | list[dict[Any, Any]],
+            cls: Type[_API_RESPONCE]
+            ) -> None | Type[UNDEFINED] | list[_API_RESPONCE]:
+    if isinstance(__list, type):
+        if __list == UNDEFINED:
+            return UNDEFINED
+        else:
+            raise ValueError(f'arg "__list" allow "None or UNDEFINED or dict" but get "{type(__list)}"')
+    elif __list is None:
+        return None
     else:
-        return list(map(lambda x: type(**x), _l))
+        return list(map(lambda x: cls(**x), __list))
 
 
-def cvtdict(_d: dict[str, dict], type: type) -> dict[str, Any]:
-    if _d == UNDEFINED:
-        return UNDEFINED  # type: ignore
+@overload
+def mapdict(__dict: dict[str, dict[Any, Any]], cls: Type[_API_RESPONCE]) -> dict[str, _API_RESPONCE]: ...
+@overload
+def mapdict(__dict: Type[UNDEFINED], cls: Any) -> Type[UNDEFINED]: ...
+@overload
+def mapdict(__dict: None, cls: Any) -> None: ...
+
+
+def mapdict(__dict: dict[str, dict[Any, Any]] | Type[UNDEFINED] | None,
+            cls: Type[_API_RESPONCE]
+            ) -> None | Type[UNDEFINED] | dict[str, _API_RESPONCE]:
+    if isinstance(__dict, type):
+        if __dict == UNDEFINED:
+            return UNDEFINED
+        else:
+            raise ValueError(f'arg "__dict" allow "None or UNDEFINED or dict" but get "{type(__dict)}"')
+    elif __dict is None:
+        return None
     else:
-        return {k: type(**v) for k, v in _d.items()}
+        return {k: cls(**v) for k, v in __dict.items()}
+
+
+@overload
+def setclass(__dict: dict[Any, Any], cls: Type[_API_RESPONCE]) -> _API_RESPONCE: ...
+@overload
+def setclass(__dict: Type[UNDEFINED], cls: Any) -> Type[UNDEFINED]: ...
+@overload
+def setclass(__dict: None, cls: Any) -> None: ...
+
+
+def setclass(__dict: None | Type[UNDEFINED] | dict[Any, Any],
+             cls: Type[_API_RESPONCE]
+             ) -> None | Type[UNDEFINED] | _API_RESPONCE:
+    if isinstance(__dict, type):
+        if __dict == UNDEFINED:
+            return UNDEFINED
+        else:
+            raise ValueError(f'arg "__dict" allow "None or UNDEFINED or dict" but get "{type(__dict)}"')
+    elif __dict is None:
+        return None
+    else:
+        return cls(**__dict)
+
+
+@overload
+def safe_enum(val: _ENUM_VAL, enum: Type[_ENUM_LIKE]) -> _ENUM_LIKE | _ENUM_VAL: ...
+@overload
+def safe_enum(val: Type[UNDEFINED], enum: Any) -> Type[UNDEFINED]: ...
+@overload
+def safe_enum(val: None, enum: Any) -> None: ...
+
+
+def safe_enum(val: None | Type[UNDEFINED] | _ENUM_VAL, enum: Type[_ENUM_LIKE]
+              ) -> None | Type[UNDEFINED] | _ENUM_LIKE | _ENUM_VAL:
+    if val == UNDEFINED:
+        return UNDEFINED
+    elif val is None:
+        return None
+    else:
+        try:
+            return enum(val)
+        except ValueError:
+            warnings.warn(f"SafeEnum: '{val}' is not a valid {enum.__name__}. Assignd {type(val)} value.")
+            return val
 
 
 class Cookie(TypedDict):
@@ -80,10 +160,10 @@ class _ProfileItem(APIResponce):
 
 
 class _Cover(APIResponce):
-    def __init__(self, type: Literal['cover_image', 'post_image'],
+    def __init__(self, type: str,
                  url: str,
                  **kwargs) -> None:
-        self.type = type
+        self.type = safe_enum(type, pfenum.CoverType)
         self.url = URL(url)
         super().__init__(**kwargs)
 
@@ -119,10 +199,10 @@ class _PostItem(APIResponce):
         self.likeCount = likeCount
         self.commentCount = commentCount
         self.isRestricted = isRestricted
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
-        self.cover = _Cover(**cover) if cover is not None else None
+        self.cover = setclass(cover, _Cover)
         self.excerpt = excerpt
 
         super().__init__(**kwargs)
@@ -165,12 +245,12 @@ class _File(APIResponce):
 
 
 class _ArticleParagraphStyle(APIResponce):
-    def __init__(self, type: Literal['bold'],
+    def __init__(self, type: str,
                  offset: int,
                  length: int,
                  **kwargs) -> None:
         
-        self.type = type
+        self.type = safe_enum(type, pfenum.ArticleParagraphStyle)
         self.offset = offset
         self.length = length
 
@@ -190,22 +270,60 @@ class _ArticleParagraphLink(APIResponce):
         super().__init__(**kwargs)
 
 
-class _ArticleBlock(APIResponce):
-    def __init__(self, type: Literal['p', 'header', 'image', 'file', 'url_embed'],
-                 text: str | Type[UNDEFINED] = UNDEFINED,
-                 styles: list[dict] | Type[UNDEFINED] = UNDEFINED,
-                 imageId: str | Type[UNDEFINED] = UNDEFINED,
+class _ArticleParagraphBlock(APIResponce):
+    def __init__(self, type: Literal['p'],
+                 text: str,
                  links: list[dict] | Type[UNDEFINED] = UNDEFINED,
-                 fileId: str | Type[UNDEFINED] = UNDEFINED,
-                 urlEmbedId: str | Type[UNDEFINED] = UNDEFINED,
+                 styles: list[dict] | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
 
-        self.type = type
+        self.type = safe_enum(type, pfenum.ArticleBlockType)
         self.text = text
-        self.styles: list[_ArticleParagraphStyle] = cvtlist(styles, _ArticleParagraphStyle)
+        self.links = maplist(links, _ArticleParagraphLink)
+        self.styles = maplist(styles, _ArticleParagraphStyle)
+
+        super().__init__(**kwargs)
+
+
+class _ArticleHeaderBlock(APIResponce):
+    def __init__(self, type: Literal['header'],
+                 text: str,
+                 **kwargs) -> None:
+
+        self.type = safe_enum(type, pfenum.ArticleBlockType)
+        self.text = text
+
+        super().__init__(**kwargs)
+
+
+class _ArticleImageBlock(APIResponce):
+    def __init__(self, type: Literal['image'],
+                 imageId: str,
+                 **kwargs) -> None:
+
+        self.type = safe_enum(type, pfenum.ArticleBlockType)
         self.imageId = imageId
-        self.links: list[_ArticleParagraphLink] = cvtlist(links, _ArticleParagraphLink)
+
+        super().__init__(**kwargs)
+
+
+class _ArticleFileBlock(APIResponce):
+    def __init__(self, type: Literal['file'],
+                 fileId: str,
+                 **kwargs) -> None:
+
+        self.type = safe_enum(type, pfenum.ArticleBlockType)
         self.fileId = fileId
+
+        super().__init__(**kwargs)
+
+
+class _ArticleURLEmbedBlock(APIResponce):
+    def __init__(self, type: Literal['url_embed'],
+                 urlEmbedId: str,
+                 **kwargs) -> None:
+
+        self.type = safe_enum(type, pfenum.ArticleBlockType)
         self.urlEmbedId = urlEmbedId
 
         super().__init__(**kwargs)
@@ -214,22 +332,50 @@ class _ArticleBlock(APIResponce):
 class _UrlEmbed(APIResponce):
     def __init__(self, id: str,
                  type: str,
-                 html: str | Type[UNDEFINED] = UNDEFINED,
-                 url: str | Type[UNDEFINED] = UNDEFINED,
-                 host: str | Type[UNDEFINED] = UNDEFINED,
-                 postInfo: dict | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id
         self.type = type
-        self.url = url
-        self.host = host
-        if type == 'fanbox.post':
-            self.postInfo = _EmbedPostInfo(**postInfo)
-        else:
-            self.html = html
 
         super().__init__(**kwargs)
+
+
+class _UrlEmbedDefault(_UrlEmbed):
+    def __init__(self, id: str, type: str,
+                 host: str,
+                 url: str,
+                 **kwargs) -> None:
+        self.host = host
+        self.url = url
+        super().__init__(id, type, **kwargs)
+
+
+class _UrlEmbedHtml(_UrlEmbed):
+    def __init__(self, id: str, type: str,
+                 html: str,
+                 **kwargs) -> None:
+        self.html = html
+        super().__init__(id, type, **kwargs)
+
+
+class _UrlEmbedHtmlCard(_UrlEmbedHtml):
+    pass
+
+
+class _UrlEmbedFanboxCreator(_UrlEmbed):
+    def __init__(self, id: str, type: str,
+                 profile: dict,
+                 **kwargs) -> None:
+        self.profile = _Creator(**profile)
+        super().__init__(id, type, **kwargs)
+
+
+class _UrlEmbedFanboxPost(_UrlEmbed):
+    def __init__(self, id: str, type: str,
+                 postInfo: dict,
+                 **kwargs) -> None:
+        self.postInfo = _EmbedPostInfo(**postInfo)
+        super().__init__(id, type, **kwargs)
 
 
 class _PostInfoBody(APIResponce):
@@ -244,15 +390,59 @@ class _PostInfoBody(APIResponce):
                  **kwargs) -> None:
                 
         self.text = text
-        self.files: list[_File] = cvtlist(files, _File)
-        self.images: list[_Image] = cvtlist(images, _Image)
+        self.files = maplist(files, _File)
+        self.images = maplist(images, _Image)
 
-        self.blocks: list[_ArticleBlock] = cvtlist(blocks, _ArticleBlock)
-        self.imageMap: dict[str, _Image] = cvtdict(imageMap, _Image)
-        self.fileMap: dict[str, _File] = cvtdict(fileMap, _File)
+        self.blocks = self.map_article_blocks(blocks)
+        self.imageMap = mapdict(imageMap, _Image)
+        self.fileMap = mapdict(fileMap, _File)
         self.embedMap = embedMap
-        self.urlEmbedMap: dict[str, _UrlEmbed] = cvtdict(urlEmbedMap, _UrlEmbed)
+        self.urlEmbedMap = self.map_url_embeds(urlEmbedMap)
         super().__init__(**kwargs)
+    
+    @classmethod
+    def create_article_block(cls, __dict: dict[Any, Any]):
+        _type = __dict['type']
+        if _type == 'p':
+            return _ArticleParagraphBlock(**__dict)
+        elif _type == 'header':
+            return _ArticleHeaderBlock(**__dict)
+        elif _type == 'image':
+            return _ArticleImageBlock(**__dict)
+        elif _type == 'file':
+            return _ArticleFileBlock(**__dict)
+        elif _type == 'url_embed':
+            return _ArticleURLEmbedBlock(**__dict)
+    
+    @classmethod
+    def map_article_blocks(
+            cls, blocks: list[dict[str, Any]] | Type[UNDEFINED]):
+        if isinstance(blocks, type):
+            return UNDEFINED
+        else:
+            return list(map(cls.create_article_block, blocks))
+    
+    @classmethod
+    def create_url_embed(cls, __dict: dict[Any, Any]):
+        _type = __dict['type']
+        if _type == 'default':
+            return _UrlEmbedDefault(**__dict)
+        elif _type == 'html':
+            return _UrlEmbedHtml(**__dict)
+        elif _type == 'html.card':
+            return _UrlEmbedHtmlCard(**__dict)
+        elif _type == 'fanbox.creator':
+            return _UrlEmbedFanboxCreator(**__dict)
+        elif _type == 'fanbox.post':
+            return _UrlEmbedFanboxPost(**__dict)
+    
+    @classmethod
+    def map_url_embeds(
+            cls, __dict: dict[str, dict[str, Any]] | Type[UNDEFINED]):
+        if isinstance(__dict, type):
+            return UNDEFINED
+        else:
+            return {k: cls.create_url_embed(v) for k, v in __dict.items()}
 
 
 class _CommentItem(APIResponce):
@@ -276,8 +466,8 @@ class _CommentItem(APIResponce):
         self.likeCount = likeCount
         self.isLiked = isLiked
         self.isOwn = isOwn
-        self.user = _User(**user)
-        self.replies: list[_CommentItem] = cvtlist(replies, _CommentItem)
+        self.user = setclass(user, _User)
+        self.replies = maplist(replies, _CommentItem)
 
         super().__init__(**kwargs)
 
@@ -308,7 +498,7 @@ class _Payment_Creator(APIResponce):
                  isActive: bool,
                  **kwargs) -> None:
 
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.isActive = isActive
         super().__init__(**kwargs)
@@ -318,7 +508,7 @@ class _Payment_Creator(APIResponce):
 
 class _PostListCreator(APIResponce):
     def __init__(self, items: list[dict], nextUrl: str, **kwargs) -> None:
-        self.items: list[_PostItem] = cvtlist(items, _PostItem)
+        self.items = maplist(items, _PostItem)
         self.nextUrl = URL(nextUrl)
         super().__init__(**kwargs)
 
@@ -329,7 +519,7 @@ class _PostInfo(APIResponce):
                  feeRequired: int,
                  publishedDatetime: str,
                  updatedDatetime: str,
-                 type: Literal['file'],
+                 type: str,
                  coverImageUrl: str | None,
                  body: dict | None,
                  tags: list[str],
@@ -344,8 +534,8 @@ class _PostInfo(APIResponce):
                  nextPost: dict | None,
                  prevPost: dict | None,
                  imageForShare: str,
-                 restrictedFor: Literal[1, 2, 3] | Type[UNDEFINED] = UNDEFINED,
-                 excerpt: Literal[''] | Type[UNDEFINED] = UNDEFINED,
+                 restrictedFor: int | Type[UNDEFINED] = UNDEFINED,
+                 excerpt: str | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
         self.id = id
@@ -354,21 +544,21 @@ class _PostInfo(APIResponce):
         self.feeRequired = feeRequired
         self.publishedDatetime = ISODateTime(publishedDatetime)
         self.updatedDatetime = ISODateTime(updatedDatetime)
-        self.type = type
-        self.body = _PostInfoBody(**body) if body is not None else None
+        self.type = safe_enum(type, pfenum.PostType)
+        self.body = setclass(body, _PostInfoBody)
         self.tags = tags
-        self.excerpt = excerpt
+        self.excerpt = safe_enum(excerpt, pfenum.PostExcerpt)
         self.isLiked = isLiked
         self.likeCount = likeCount
         self.commentCount = commentCount
-        self.restrictedFor = restrictedFor
+        self.restrictedFor = safe_enum(restrictedFor, pfenum.PostRestrictedFor)
         self.isRestricted = isRestricted
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
-        self.commentList = _CommentList(**commentList)
-        self.nextPost = _ShortPostInfo(**nextPost) if nextPost is not None else None
-        self.prevPost = _ShortPostInfo(**prevPost) if prevPost is not None else None
+        self.commentList = setclass(commentList, _CommentList)
+        self.nextPost = setclass(nextPost, _ShortPostInfo)
+        self.prevPost = setclass(prevPost, _ShortPostInfo)
         self.imageForShare = imageForShare
 
         super().__init__(**kwargs)
@@ -388,8 +578,8 @@ class _EmbedPostInfo(APIResponce):
                  user: dict,
                  creatorId: str,
                  hasAdultContent: bool,
-                 restrictedFor: Literal[1, 2, 3] | Type[UNDEFINED] = UNDEFINED,
-                 excerpt: Literal[''] | Type[UNDEFINED] = UNDEFINED,
+                 restrictedFor: int | Type[UNDEFINED] = UNDEFINED,
+                 excerpt: str | Type[UNDEFINED] = UNDEFINED,
                  cover: dict | Type[UNDEFINED] = UNDEFINED,
                  **kwargs) -> None:
         
@@ -399,13 +589,13 @@ class _EmbedPostInfo(APIResponce):
         self.publishedDatetime = ISODateTime(publishedDatetime)
         self.updatedDatetime = ISODateTime(updatedDatetime)
         self.tags = tags
-        self.excerpt = excerpt
+        self.excerpt = safe_enum(excerpt, pfenum.PostExcerpt)
         self.isLiked = isLiked
         self.likeCount = likeCount
         self.commentCount = commentCount
-        self.restrictedFor = restrictedFor
+        self.restrictedFor = safe_enum(restrictedFor, pfenum.PostRestrictedFor)
         self.isRestricted = isRestricted
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
         self.cover = cover
@@ -430,7 +620,7 @@ class _Plan(APIResponce):
         self.fee = fee
         self.description = description
         self.coverImageUrl = URL(coverImageUrl)
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.hasAdultContent = hasAdultContent
         self.paymentMethod = paymentMethod
@@ -443,7 +633,7 @@ class _Creator(APIResponce):
                  creatorId: str,
                  description: str,
                  hasAdultContent: bool,
-                 coverImageUrl: str,
+                 coverImageUrl: str | None,
                  profileLinks: list[str],
                  profileItems: list[dict],
                  isFollowed: bool,
@@ -453,13 +643,13 @@ class _Creator(APIResponce):
                  hasBoothShop: bool,
                  **kwargs) -> None:
         
-        self.user = _User(**user)
+        self.user = setclass(user, _User)
         self.creatorId = creatorId
         self.description = description
         self.hasAdultContent = hasAdultContent
-        self.coverImageUrl = URL(coverImageUrl)
+        self.coverImageUrl = coverImageUrl
         self.profileLinks = profileLinks
-        self.profileItems: list[_ProfileItem] = cvtlist(profileItems, _ProfileItem)
+        self.profileItems = maplist(profileItems, _ProfileItem)
         self.isFollowed = isFollowed
         self.isSupported = isSupported
         self.isStopped = isStopped
@@ -495,14 +685,14 @@ class _Payment(APIResponce):
     def __init__(self, id: str,
                  creator: dict,
                  paidAmount: int,
-                 paymentMethod: Literal['paypal'],
+                 paymentMethod: str,
                  paymentDatetime: str,
                  **kwargs) -> None:
         
         self.id = id
-        self.creator = _Payment_Creator(**creator)
+        self.creator = setclass(creator, _Payment_Creator)
         self.paidAmount = paidAmount
-        self.paymentMethod = paymentMethod
+        self.paymentMethod = safe_enum(paymentMethod, pfenum.PaymentMethod)
         self.paymentDatetime = ISODateTime(paymentDatetime)
 
         super().__init__(**kwargs)
@@ -518,19 +708,19 @@ class APIPostPaginate(APIResponce):
 
 class APIPostListCreator(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _PostListCreator(**body)
+        self.body = setclass(body, _PostListCreator)
         super().__init__(**kwargs)
 
 
 class APIPostInfo(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _PostInfo(**body)
+        self.body = setclass(body, _PostInfo)
         super().__init__(**kwargs)
 
 
 class APIPostListComments(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _CommentList(**body)
+        self.body = setclass(body, _CommentList)
         super().__init__(**kwargs)
 
 
@@ -538,13 +728,13 @@ class APIPostListComments(APIResponce):
 
 class APICreatorGet(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _Creator(**body)
+        self.body = setclass(body, _Creator)
         super().__init__(**kwargs)
 
 
 class APICreatorList(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body: list[_Creator] = cvtlist(body, _Creator)
+        self.body = maplist(body, _Creator)
         super().__init__(**kwargs)
 
 
@@ -552,7 +742,7 @@ class APICreatorList(APIResponce):
 
 class APIPlanList(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body: list[_Plan] = cvtlist(body, _Plan)
+        self.body = maplist(body, _Plan)
         super().__init__(**kwargs)
 
 
@@ -560,7 +750,7 @@ class APIPlanList(APIResponce):
 
 class APITagGetFeatured(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body: list[_Tag] = cvtlist(body, _Tag)
+        self.body = maplist(body, _Tag)
         super().__init__(**kwargs)
 
 
@@ -569,7 +759,7 @@ class APITagGetFeatured(APIResponce):
 
 class APIBellCountUnread(APIResponce):
     def __init__(self, body: dict, **kwargs) -> None:
-        self.body = _BellCountUnreadBody(**body)
+        self.body = setclass(body, _BellCountUnreadBody)
         super().__init__(**kwargs)
 
 
@@ -593,5 +783,5 @@ class APINewsletterCountUnread(APIResponce):
 
 class APIPaymentList(APIResponce):
     def __init__(self, body: list[dict], **kwargs) -> None:
-        self.body: list[_Payment] = cvtlist(body, _Payment)
+        self.body = maplist(body, _Payment)
         super().__init__(**kwargs)

@@ -46,66 +46,6 @@ class CC_FANBOX_API():
         parsed = parse.urlparse(url)
         query = parse.parse_qs(parsed.query)
         return {k: v[0] for k, v in query.items()}
-    
-    @staticmethod
-    def format_blog(body: types._PostInfoBody, creatorId: str):
-        
-        text = ''
-        for block in body.blocks:
-            if block.type == 'p':
-                t = ''
-                insertion = {}
-                if block.styles is not types.UNDEFINED:
-                    for style in reversed(block.styles):
-                        b, e = style.offset, style.offset + style.length
-                        insertion[b] = ' **'
-                        insertion[e] = '** '
-                if block.links is not types.UNDEFINED:
-                    for link in reversed(block.links):
-                        b, e = link.offset, link.offset + link.length
-                        if b in insertion:
-                            if insertion[b] == ' **':
-                                insertion[b] = ' **['
-                            elif insertion[b] == '** ':
-                                insertion[b] = '** ['
-                            else:
-                                insertion[b] = '['
-                        else:
-                            insertion[b] = '['
-                        if e in insertion:
-                            if insertion[e] == ' **':
-                                insertion[e] = '](' + link.url + ') **'
-                            elif insertion[e] == '** ':
-                                insertion[e] = '](' + link.url + ')** '
-                            else:
-                                insertion[e] = '](' + link.url + ')'
-                        else:
-                            insertion[e] = '](' + link.url + ')'
-                insertion = dict(sorted(insertion.items()))
-
-                prev = 0
-                for k, v in insertion.items():
-                    t += block.text[prev:k]
-                    t += v
-                    prev = k
-                t += block.text[prev:]
-                text += (t + '\n\n')
-            elif block.type == 'header':
-                text += ('\n\n### ' + block.text + '\n\n')
-            elif block.type == 'image':
-                text += ('{image:' + block.imageId + '}\n\n')
-            elif block.type == 'file':
-                text += ('{file:' + block.fileId + '}\n\n')
-            elif block.type == 'url_embed':
-                if body.urlEmbedMap[block.urlEmbedId].type == 'fanbox.post':
-                    post_id = body.urlEmbedMap[block.urlEmbedId].postInfo.id
-                    text += ('[FANBOX POST](https://' + creatorId + '.fanbox.cc/posts/' + post_id + ')\n\n')
-                else:
-                    text += (body.urlEmbedMap[block.urlEmbedId].html + '\n\n')
-            else:
-                text += ('! - UNKNOWN FORMAT OF BLOCK - !\n\n')
-        
-        return text
 
 
 class _CHILD_API():
